@@ -47,34 +47,31 @@ st.markdown("Predict if a review is **Positive**, **Neutral**, or **Negative** u
 
 tab1, tab2 = st.tabs(["🧠 Single Prediction", "📁 Batch Analysis"])
 
-# Tab 1: Single Prediction with Confidence Bar Chart
+# Tab 1: Single Prediction (Improved)
 with tab1:
-    user_input = st.text_area("Enter a review:")
-    if st.button("🔍 Analyze"):
+    st.markdown("### 📝 Type a review below and click analyze:")
+
+    user_input = st.text_area("Review Text", placeholder="Example: The coffee was amazing and the staff was very friendly!")
+
+    confidence_threshold = st.slider("🔧 Minimum Confidence (optional)", 0.0, 1.0, 0.5, step=0.01)
+
+    if st.button("🔍 Analyze Sentiment"):
         if user_input.strip():
-            # Tokenize and predict
-            sequence = tokenizer.texts_to_sequences([user_input])
-            padded = pad_sequences(sequence, maxlen=max_len)
-            prediction = model.predict(padded)[0]
-            label = np.argmax(prediction)
-            sentiment_list = ["Negative", "Neutral", "Positive"]
-            emoji_list = ["😠", "😐", "👍"]
+            with st.spinner("Analyzing... 🧠"):
+                sentiment, emoji, confidence = predict_sentiment(user_input)
 
-            sentiment = sentiment_list[label]
-            emoji = emoji_list[label]
-            confidence = prediction[label]
+                st.success(f"### {emoji} Sentiment: **{sentiment}**")
+                st.markdown(f"**Confidence:** `{confidence:.2f}`")
 
-            st.markdown(f"### Sentiment: **{sentiment}** {emoji}")
-            st.markdown(f"### Confidence: `{confidence:.2f}`")
+                # Extra suggestion or feedback
+                if confidence < confidence_threshold:
+                    st.info("🤔 The model isn't very confident. You might want to rephrase the review.")
+                else:
+                    st.markdown("✅ Model is confident about the prediction!")
 
-            # Show full confidence distribution
-            conf_df = pd.DataFrame({
-                'Sentiment': sentiment_list,
-                'Confidence': prediction
-            })
-
-            st.markdown("### 🔬 Model Confidence Breakdown")
-            st.bar_chart(conf_df.set_index("Sentiment"))
+                # Display color-coded confidence bar
+                st.markdown("### 📊 Confidence Level")
+                st.progress(int(confidence * 100))
         else:
             st.warning("⚠️ Please enter a review to analyze.")
 
