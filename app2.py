@@ -47,14 +47,34 @@ st.markdown("Predict if a review is **Positive**, **Neutral**, or **Negative** u
 
 tab1, tab2 = st.tabs(["🧠 Single Prediction", "📁 Batch Analysis"])
 
-# Tab 1: Single Prediction
+# Tab 1: Single Prediction with Confidence Bar Chart
 with tab1:
     user_input = st.text_area("Enter a review:")
     if st.button("🔍 Analyze"):
         if user_input.strip():
-            sentiment, emoji, confidence = predict_sentiment(user_input)
+            # Tokenize and predict
+            sequence = tokenizer.texts_to_sequences([user_input])
+            padded = pad_sequences(sequence, maxlen=max_len)
+            prediction = model.predict(padded)[0]
+            label = np.argmax(prediction)
+            sentiment_list = ["Negative", "Neutral", "Positive"]
+            emoji_list = ["😠", "😐", "👍"]
+
+            sentiment = sentiment_list[label]
+            emoji = emoji_list[label]
+            confidence = prediction[label]
+
             st.markdown(f"### Sentiment: **{sentiment}** {emoji}")
             st.markdown(f"### Confidence: `{confidence:.2f}`")
+
+            # Show full confidence distribution
+            conf_df = pd.DataFrame({
+                'Sentiment': sentiment_list,
+                'Confidence': prediction
+            })
+
+            st.markdown("### 🔬 Model Confidence Breakdown")
+            st.bar_chart(conf_df.set_index("Sentiment"))
         else:
             st.warning("⚠️ Please enter a review to analyze.")
 
