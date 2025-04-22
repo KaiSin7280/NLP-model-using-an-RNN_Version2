@@ -47,31 +47,14 @@ st.markdown("Predict if a review is **Positive**, **Neutral**, or **Negative** u
 
 tab1, tab2 = st.tabs(["🧠 Single Prediction", "📁 Batch Analysis"])
 
-# Tab 1: Single Prediction (Improved)
+# Tab 1: Single Prediction
 with tab1:
-    st.markdown("### 📝 Type a review below and click analyze:")
-
-    user_input = st.text_area("Review Text", placeholder="Example: The coffee was amazing and the staff was very friendly!")
-
-    confidence_threshold = st.slider("🔧 Minimum Confidence (optional)", 0.0, 1.0, 0.5, step=0.01)
-
-    if st.button("🔍 Analyze Sentiment"):
+    user_input = st.text_area("Enter a review:")
+    if st.button("🔍 Analyze"):
         if user_input.strip():
-            with st.spinner("Analyzing... 🧠"):
-                sentiment, emoji, confidence = predict_sentiment(user_input)
-
-                st.success(f"### {emoji} Sentiment: **{sentiment}**")
-                st.markdown(f"**Confidence:** `{confidence:.2f}`")
-
-                # Extra suggestion or feedback
-                if confidence < confidence_threshold:
-                    st.info("🤔 The model isn't very confident. You might want to rephrase the review.")
-                else:
-                    st.markdown("✅ Model is confident about the prediction!")
-
-                # Display color-coded confidence bar
-                st.markdown("### 📊 Confidence Level")
-                st.progress(int(confidence * 100))
+            sentiment, emoji, confidence = predict_sentiment(user_input)
+            st.markdown(f"### Sentiment: **{sentiment}** {emoji}")
+            st.markdown(f"### Confidence: `{confidence:.2f}`")
         else:
             st.warning("⚠️ Please enter a review to analyze.")
 
