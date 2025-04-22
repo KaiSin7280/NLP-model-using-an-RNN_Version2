@@ -9,10 +9,10 @@ with open('tokenizer.pkl', 'rb') as f:
     tokenizer = pickle.load(f)
 
 # Load the updated RNN model saved as .keras
-model = load_model('rnn_sentiment_model.keras')  # ✅ CHANGED from .pkl to .keras
+model = load_model('rnn_sentiment_model.keras')
 
 # Settings
-max_len = 150  # Should match what was used during training
+max_len = 150  # Should match training settings
 
 # Prediction function
 def predict_sentiment(text):
@@ -24,15 +24,54 @@ def predict_sentiment(text):
     confidence = np.max(prediction)
     return sentiment, confidence
 
-# Streamlit App
-st.set_page_config(page_title="Sentiment Analysis (RNN)", layout="centered")
-st.title("💬 Sentiment Classifier (RNN)")
+# Streamlit UI Configuration
+st.set_page_config(page_title="Sentiment Classifier (RNN)", layout="centered")
 
-user_input = st.text_area("Enter a review:")
-if st.button("Analyze"):
+# Custom CSS
+st.markdown("""
+    <style>
+    .main {
+        background-color: #f6f9fc;
+    }
+    .stTextArea textarea {
+        font-size: 16px;
+    }
+    .stButton>button {
+        background-color: #4CAF50;
+        color: white;
+        padding: 0.6em 1.2em;
+        border-radius: 8px;
+        font-weight: bold;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# App Title
+st.markdown("<h1 style='text-align: center;'>💬 Sentiment Classifier (RNN)</h1>", unsafe_allow_html=True)
+st.write(" ")
+
+# Text Input
+user_input = st.text_area("✍️ Enter a customer review below:", height=150)
+
+# Analyze Button
+if st.button("🚀 Analyze Sentiment"):
     if user_input.strip():
         sentiment, confidence = predict_sentiment(user_input)
-        st.markdown(f"### 🧠 Sentiment: **{sentiment}**")
-        st.markdown(f"### 🔍 Confidence: **{confidence:.2f}**")
+
+        color_map = {
+            "Positive": "green",
+            "Neutral": "orange",
+            "Negative": "red"
+        }
+
+        st.markdown(f"""
+            <h3 style='text-align: center;'>🧠 Prediction</h3>
+            <div style='text-align: center; font-size: 24px; color: {color_map[sentiment]};'>
+                Sentiment: <strong>{sentiment}</strong>
+            </div>
+            <div style='text-align: center; font-size: 20px; margin-top: 10px;'>
+                Confidence: <strong>{confidence:.2f}</strong>
+            </div>
+        """, unsafe_allow_html=True)
     else:
         st.warning("⚠️ Please enter some text to analyze.")
