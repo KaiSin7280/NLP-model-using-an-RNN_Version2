@@ -1,38 +1,42 @@
 import streamlit as st
+import joblib
 import numpy as np
-import pickle
-from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# Load the model and tokenizer
-model = load_model('rnn_sentiment_model.keras')
-with open('tokenizer.pkl', 'rb') as f:
-    tokenizer = pickle.load(f)
+# Load the trained RNN model and tokenizer
+model = joblib.load('rnn_sentiment_model.pkl')
+tokenizer = joblib.load('tokenizer.pkl')
 
-# Set parameters
+# Constants
 max_len = 100
-label_map = {0: "Negative", 1: "Neutral", 2: "Positive"}
+labels = {0: "Negative", 1: "Neutral", 2: "Positive"}
 
-# Streamlit UI
-st.set_page_config(page_title="Coffee Review Sentiment", layout="centered")
-st.title("☕ Coffee Review Sentiment Analyzer")
-st.write("Enter a review to predict the sentiment:")
+# App UI
+st.set_page_config(page_title="Sentiment Analyzer", layout="centered")
+st.title("☕ Coffee Review Sentiment Analyzer (RNN)")
+st.markdown("Enter a review to predict its sentiment:")
 
-user_input = st.text_area("✍️ Your Review", height=150)
+user_input = st.text_area("Review", "")
 
-if st.button("Analyze"):
-    if not user_input.strip():
+if st.button("Analyze Sentiment"):
+    if user_input.strip() == "":
         st.warning("⚠️ Please enter a review.")
     else:
-        sequence = tokenizer.texts_to_sequences([user_input])
-        padded = pad_sequences(sequence, maxlen=max_len)
+        # Preprocess input
+        seq = tokenizer.texts_to_sequences([user_input])
+        padded = pad_sequences(seq, maxlen=max_len)
+
+        # Predict
         prediction = model.predict(padded)
-        predicted_label = np.argmax(prediction)
+        predicted_class = np.argmax(prediction)
 
-        st.subheader("🔍 Sentiment Prediction:")
-        st.success(f"**{label_map[predicted_label]}**")
+        # Display result
+        st.subheader("Prediction:")
+        st.write(f"**{labels[predicted_class]}**")
+        st.progress(float(np.max(prediction)))
 
-        st.subheader("📊 Probabilities:")
-        st.write(f"- Negative: {prediction[0][0]:.2f}")
-        st.write(f"- Neutral: {prediction[0][1]:.2f}")
-        st.write(f"- Positive: {prediction[0][2]:.2f}")
+        # Show class probabilities
+        st.subheader("Confidence:")
+        for idx, prob in enumerate(prediction[0]):
+            st.write(f"{labels[idx]}: {prob:.2f}")
