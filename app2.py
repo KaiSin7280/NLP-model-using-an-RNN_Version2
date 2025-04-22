@@ -92,3 +92,25 @@ with tab2:
                     )
         except Exception as e:
             st.error(f"❌ Error processing file: {e}")
+
+if st.button("🧠 Analyze All Reviews"):
+    results_df = predict_batch(df['reviews'].tolist())
+
+    # Display results
+    st.markdown("### ✅ Batch Results:")
+    st.dataframe(results_df)
+
+    # Sentiment Count Bar Chart
+    st.markdown("### 📊 Sentiment Distribution")
+    sentiment_counts = results_df['Sentiment'].value_counts().reindex(["Positive", "Neutral", "Negative"], fill_value=0)
+    st.bar_chart(sentiment_counts)
+
+    # Download results
+    csv_data = results_df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Download Results as CSV",
+        data=csv_data,
+        file_name="sentiment_results.csv",
+        mime='text/csv'
+    )
+
