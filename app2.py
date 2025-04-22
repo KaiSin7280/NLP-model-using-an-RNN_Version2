@@ -1,42 +1,38 @@
 import streamlit as st
-import joblib
 import numpy as np
-from tensorflow.keras.preprocessing.text import Tokenizer
+import pickle
+from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-# Load the trained RNN model and tokenizer
-model = joblib.load('rnn_sentiment_model.pkl')
-tokenizer = joblib.load('tokenizer.pkl')
+# Load tokenizer
+with open('tokenizer.pkl', 'rb') as f:
+    tokenizer = pickle.load(f)
 
-# Constants
-max_len = 100
-labels = {0: "Negative", 1: "Neutral", 2: "Positive"}
+# Load the updated RNN model saved as .keras
+model = load_model('rnn_sentiment_model.keras')  # ✅ CHANGED from .pkl to .keras
 
-# App UI
-st.set_page_config(page_title="Sentiment Analyzer", layout="centered")
-st.title("☕ Coffee Review Sentiment Analyzer (RNN)")
-st.markdown("Enter a review to predict its sentiment:")
+# Settings
+max_len = 150  # Should match what was used during training
 
-user_input = st.text_area("Review", "")
+# Prediction function
+def predict_sentiment(text):
+    sequence = tokenizer.texts_to_sequences([text])
+    padded = pad_sequences(sequence, maxlen=max_len)
+    prediction = model.predict(padded)
+    label = np.argmax(prediction, axis=1)[0]
+    sentiment = ["Negative", "Neutral", "Positive"][label]
+    confidence = np.max(prediction)
+    return sentiment, confidence
 
-if st.button("Analyze Sentiment"):
-    if user_input.strip() == "":
-        st.warning("⚠️ Please enter a review.")
+# Streamlit App
+st.set_page_config(page_title="Sentiment Analysis (RNN)", layout="centered")
+st.title("💬 Sentiment Classifier (RNN)")
+
+user_input = st.text_area("Enter a review:")
+if st.button("Analyze"):
+    if user_input.strip():
+        sentiment, confidence = predict_sentiment(user_input)
+        st.markdown(f"### 🧠 Sentiment: **{sentiment}**")
+        st.markdown(f"### 🔍 Confidence: **{confidence:.2f}**")
     else:
-        # Preprocess input
-        seq = tokenizer.texts_to_sequences([user_input])
-        padded = pad_sequences(seq, maxlen=max_len)
-
-        # Predict
-        prediction = model.predict(padded)
-        predicted_class = np.argmax(prediction)
-
-        # Display result
-        st.subheader("Prediction:")
-        st.write(f"**{labels[predicted_class]}**")
-        st.progress(float(np.max(prediction)))
-
-        # Show class probabilities
-        st.subheader("Confidence:")
-        for idx, prob in enumerate(prediction[0]):
-            st.write(f"{labels[idx]}: {prob:.2f}")
+        st.warning("⚠️ Please enter some text to analyze.")
