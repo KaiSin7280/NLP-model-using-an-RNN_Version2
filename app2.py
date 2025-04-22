@@ -21,7 +21,7 @@ def predict_sentiment(text):
     prediction = model.predict(padded)
     label = np.argmax(prediction, axis=1)[0]
     sentiment_list = ["Negative", "Neutral", "Positive"]
-    emoji_list = ["😠", "😐", "👍"]
+    emoji_list = ["😠", "😐", "😊"]
     return sentiment_list[label], emoji_list[label], np.max(prediction)
 
 # Prediction function (batch)
@@ -31,7 +31,7 @@ def predict_batch(texts):
     predictions = model.predict(padded)
     labels = np.argmax(predictions, axis=1)
     sentiments = [ ["Negative", "Neutral", "Positive"][i] for i in labels ]
-    emojis = [ ["😠", "😐", "👍"][i] for i in labels ]
+    emojis = [ ["😠", "😐", "😊"][i] for i in labels ]
     confidences = np.max(predictions, axis=1)
     return pd.DataFrame({
         "Review": texts,
