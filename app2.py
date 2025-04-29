@@ -4,87 +4,140 @@ import pandas as pd
 import pickle
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import os
 
-# Load tokenizer and model
-with open('tokenizer.pkl', 'rb') as f:
-    tokenizer = pickle.load(f)
+# ======================
+# STREAMLIT INITIALIZATION
+# ======================
+try:
+    st.set_page_config(
+        page_title="Sentiment Analysis (RNN)",
+        layout="centered",
+        initial_sidebar_state="expanded"
+    )
+except Exception as e:
+    st.error(f"Initialization error: {e}")
 
-model = load_model('rnn_sentiment_model.keras')  # ✅ Changed from .pkl to .keras
+# ======================
+# MODEL & TOKENIZER LOADING
+# ======================
+@st.cache_resource
+def load_model_and_tokenizer():
+    try:
+        if not os.path.exists("rnn_sentiment_model.keras") or not os.path.exists("tokenizer.pkl"):
+            raise FileNotFoundError("Model or Tokenizer not found. Please upload the required files.")
+        
+        model = load_model("rnn_sentiment_model.keras")
 
-# Settings
-max_len = 150  # Should match training setting
+        with open('tokenizer.pkl', 'rb') as f:
+            tokenizer = pickle.load(f)
 
-# Prediction function (single)
-def predict_sentiment(text):
-    sequence = tokenizer.texts_to_sequences([text])
-    padded = pad_sequences(sequence, maxlen=max_len)
-    prediction = model.predict(padded)
-    label = np.argmax(prediction, axis=1)[0]
-    sentiment_list = ["Negative", "Neutral", "Positive"]
-    emoji_list = ["😠", "😐", "😊"]
-    return sentiment_list[label], emoji_list[label], np.max(prediction)
+        return model, tokenizer
+    except Exception as e:
+        st.error(f"Loading model/tokenizer failed: {str(e)}")
+        return None, None
 
-# Prediction function (batch)
-def predict_batch(texts):
-    sequences = tokenizer.texts_to_sequences(texts)
-    padded = pad_sequences(sequences, maxlen=max_len)
-    predictions = model.predict(padded)
-    labels = np.argmax(predictions, axis=1)
-    sentiments = [ ["Negative", "Neutral", "Positive"][i] for i in labels ]
-    emojis = [ ["😠", "😐", "😊"][i] for i in labels ]
-    confidences = np.max(predictions, axis=1)
-    return pd.DataFrame({
-        "Review": texts,
-        "Sentiment": sentiments,
-        "Emoji": emojis,
-        "Confidence": confidences
-    })
+# ======================
+# PREDICTION FUNCTION
+# ======================
+max_len = 150  # same as training
 
-# Streamlit layout
-st.set_page_config(page_title="Sentiment Analyzer (RNN)", layout="centered")
-st.title("💬 Sentiment Classifier using RNN")
-st.markdown("Predict if a review is **Positive**, **Neutral**, or **Negative** using a trained RNN model.")
+def predict_sentiment(model, tokenizer, text):
+    try:
+        if not text.strip():
+            return None
+        
+        sequence = tokenizer.texts_to_sequences([text])
+        padded = pad_sequences(sequence, maxlen=max_len)
+        prediction = model.predict(padded, verbose=0)
+        
+        label = np.argmax(prediction, axis=1)[0]
+        confidence = np.max(prediction)
 
-tab1, tab2 = st.tabs(["🧠 Single Prediction", "📁 Batch Analysis"])
+        sentiments = ["Negative", "Neutral", "Positive"]
+        emojis = ["😞", "😐", "😊"]
 
-# Tab 1: Single Prediction
-with tab1:
-    user_input = st.text_area("Enter a review:")
-    if st.button("🔍 Analyze"):
-        if user_input.strip():
-            sentiment, emoji, confidence = predict_sentiment(user_input)
-            st.markdown(f"### Sentiment: **{sentiment}** {emoji}")
-            st.markdown(f"### Confidence: `{confidence:.2f}`")
-        else:
-            st.warning("⚠️ Please enter a review to analyze.")
+        return {
+            "sentiment": sentiments[label],
+            "emoji": emojis[label],
+            "confidence": confidence,
+            "probabilities": prediction[0]
+        }
 
-# Tab 2: Batch Prediction from CSV
-with tab2:
-    st.markdown("Upload a CSV file containing a column named `reviews`.")
-    uploaded_file = st.file_uploader("📁 Upload CSV", type=["csv"])
+    except Exception as e:
+        st.error(f"Prediction failed: {str(e)}")
+        return None
 
-    if uploaded_file is not None:
-        df = pd.read_csv(uploaded_file)
-        if "reviews" not in df.columns:
-            st.error("❌ The CSV must have a column named 'reviews'.")
-        else:
-            if st.button("🧠 Analyze All Reviews"):
-                results_df = predict_batch(df['reviews'].tolist())
+# ======================
+# MAIN APP INTERFACE
+# ======================
+st.title("Review Sentiment Analysis (RNN)")
+st.write("Enter your review below:")
 
-                # Display results
-                st.markdown("### ✅ Batch Results:")
-                st.dataframe(results_df)
+user_input = st.text_area("Review Text:", height=150)
 
-                # Bar chart of sentiment counts
-                st.markdown("### 📊 Sentiment Distribution")
-                sentiment_counts = results_df['Sentiment'].value_counts().reindex(["Positive", "Neutral", "Negative"], fill_value=0)
-                st.bar_chart(sentiment_counts)
+if st.button("Analyze Sentiment", type="primary"):
+    if not user_input.strip():
+        st.warning("⚠️ Please enter a review first.")
+    else:
+        with st.spinner("Processing..."):
+            model, tokenizer = load_model_and_tokenizer()
 
-                # Download results
-                csv_data = results_df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="📥 Download Results as CSV",
-                    data=csv_data,
-                    file_name="sentiment_results.csv",
-                    mime='text/csv'
-                )
+            if model is not None and tokenizer is not None:
+                results = predict_sentiment(model, tokenizer, user_input)
+
+                if results:
+                    sentiment = results["sentiment"]
+                    emoji = results["emoji"]
+                    confidence = results["confidence"]
+                    probabilities = results["probabilities"]
+
+                    # Color Mapping
+                    color_map = {
+                        "Positive": "green",
+                        "Neutral": "blue",
+                        "Negative": "red"
+                    }
+                    color = color_map.get(sentiment, "gray")
+
+                    st.markdown(
+                        f"### <span style='color:{color}'>{emoji} {sentiment}</span>",
+                        unsafe_allow_html=True
+                    )
+
+                    st.progress(int(confidence * 100))
+                    st.caption(f"Confidence: {confidence:.1%}")
+
+                    with st.expander("Detailed Analysis"):
+                        cols = st.columns(3)
+                        cols[0].metric("Positive", f"{probabilities[2]:.1%}")
+                        cols[1].metric("Neutral", f"{probabilities[1]:.1%}")
+                        cols[2].metric("Negative", f"{probabilities[0]:.1%}")
+
+# ======================
+# TROUBLESHOOTING SECTION
+# ======================
+with st.expander("⚠️ Troubleshooting Help"):
+    st.markdown("""
+    **Common Issues & Solutions:**
+
+    1. **Model or Tokenizer not found**:
+       - Ensure `rnn_sentiment_model.keras` and `tokenizer.pkl` are in the app folder.
+       - Refresh the page after uploading.
+
+    2. **Strange predictions**:
+       - Input longer and more explicit reviews for better results.
+
+    3. **App crashes**:
+       - Restart the Streamlit server.
+       - Check console logs for detailed errors.
+    """)
+
+# ======================
+# SECURITY WARNING
+# ======================
+st.sidebar.warning("""
+⚠️ **Security Notice**  
+This app loads models and tokenizers from pickle/keras files which can execute arbitrary code.  
+Only use models from trusted sources.
+""")
